@@ -18,12 +18,18 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\kalman.cpp">
+    <ClCompile Include="src\kf.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filter_base.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="inc\kalman.h">
+    <ClInclude Include="inc\kf.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\filter_base.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
