@@ -22,7 +22,9 @@ enum StateMembers {
 
 class FilterBase {
 public:
-	FilterBase() {}
+	FilterBase() {
+		transfer_func_.setIdentity();
+	}
 	~FilterBase() {}
 
 	void setState(const Eigen::VectorXd& state);

@@ -28,6 +28,8 @@ void KF::correct() {
 	double sin_roll = std::sin(roll);
 	double sin_pitch = std::sin(pitch);
 	double sin_yaw = std::sin(yaw);
+	double sec_pitch = 1 / cos_pitch;
+	double tan_pitch = sin_pitch * sec_pitch;
 
 	transfer_func_(StateMemberX, StateMemberVx) = cos_yaw * cos_pitch * delta_t;
 	transfer_func_(StateMemberX, StateMemberVy) = (-1.0 * sin_yaw * cos_roll + cos_yaw * sin_pitch * sin_roll) * delta_t;
@@ -51,5 +53,17 @@ void KF::correct() {
 	transfer_func_(StateMemberZ, StateMemberAz) = 0.5 * transfer_func_(StateMemberZ, StateMemberVz) * delta_t;
 
 	transfer_func_(StateMemberRoll, StateMemberGx) = delta_t;
-	transfer_func_(StateMemberRoll, StateMemberGy) = 
+	transfer_func_(StateMemberRoll, StateMemberGy) = sin_roll * tan_pitch * delta_t;
+	transfer_func_(StateMemberRoll, StateMemberGz) = cos_roll * tan_pitch * delta_t;
+	transfer_func_(StateMemberPitch, StateMemberGx) = 0;
+	transfer_func_(StateMemberPitch, StateMemberGy) = cos_roll * delta_t;
+	transfer_func_(StateMemberPitch, StateMemberGz) = -1.0 * sin_roll * delta_t;
+	transfer_func_(StateMemberYaw, StateMemberGx) = 0;
+	transfer_func_(StateMemberYaw, StateMemberGy) = sin_roll * sec_pitch * delta_t;
+	transfer_func_(StateMemberYaw, StateMemberGz) = cos_roll * sec_pitch * delta_t;
+
+	transfer_func_(StateMemberVx, StateMemberAx) = delta_t;
+	transfer_func_(StateMemberVy, StateMemberAy) = delta_t;
+	transfer_func_(StateMemberVz, StateMemberAz) = delta_t;
+
 }
