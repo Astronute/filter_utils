@@ -2,7 +2,9 @@
 #include "Eigen/Dense"
 #include "filter_base.h"
 
-class KF: public FilterBase{
+namespace FB {
+
+class KF : public FilterBase {
 public:
 	KF() {}
 	~KF() {}
@@ -12,3 +14,6 @@ public:
 	void correct();
 
 };
+
+}
+
