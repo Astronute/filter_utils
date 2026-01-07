@@ -4,54 +4,69 @@
 
 namespace FB{
 
-const double PI = 3.141592653589793;
-const double TAU = 6.283185307179587;
+	const double PI = 3.141592653589793;
+	const double TAU = 6.283185307179587;
+	const int STATE_SIZE = 15;
 
-enum StateMembers {
-	// state terms
-	StateMemberX = 0,
-	StateMemberY,
-	StateMemberZ,
-	StateMemberRoll,
-	StateMemberPitch,
-	StateMemberYaw,
-	StateMemberVx,
-	StateMemberVy,
-	StateMemberVz,
-	// control terms
-	StateMemberGx,
-	StateMemberGy,
-	StateMemberGz,
-	StateMemberAx,
-	StateMemberAy,
-	StateMemberAz
-};
+	// control vector
+	const int TWIST_SIZE = 6;
 
-enum ControlMembers {
-	ControlMemberAx,
-	ControlMemberAy,
-	ControlMemberAz,
-	ControlMemberGAroll,
-	ControlMemberGApitch,
-	ControlMemberGAyaw
-};
+	enum StateMembers {
+		// state terms
+		StateMemberX = 0,
+		StateMemberY,
+		StateMemberZ,
+		StateMemberRoll,
+		StateMemberPitch,
+		StateMemberYaw,
+		StateMemberVx,
+		StateMemberVy,
+		StateMemberVz,
+		// control terms
+		StateMemberGx,
+		StateMemberGy,
+		StateMemberGz,
+		StateMemberAx,
+		StateMemberAy,
+		StateMemberAz
+	};
 
-class FilterBase {
-public:
-	FilterBase() {
-		transfer_func_.setIdentity();
-	}
-	~FilterBase() {}
+	enum ControlMembers {
+		ControlMemberAx,
+		ControlMemberAy,
+		ControlMemberAz,
+		ControlMemberGAroll,
+		ControlMemberGApitch,
+		ControlMemberGAyaw
+	};
 
-	void setState(const Eigen::VectorXd& state);
+	class FilterBase {
+	public:
+		FilterBase() : state_(STATE_SIZE), 
+			transfer_func_(STATE_SIZE, STATE_SIZE),
+			transfer_func_jacobian_(STATE_SIZE, STATE_SIZE),
+			control_acceleration_(TWIST_SIZE),
+			estimate_error_covariance_(STATE_SIZE, STATE_SIZE){
+			reset();
+		}
+		~FilterBase() {}
 
-	double normalize_angle(double angle);
+		void reset();
 
-protected:
-	Eigen::VectorXd state_;
-	Eigen::MatrixXd control_acceleration_;
-	Eigen::MatrixXd transfer_func_;
-};
+		void setState(const Eigen::VectorXd& state);
+
+		void set_estimate_error_covariance(const Eigen::MatrixXd & estimate_error_covariance);
+
+		double normalize_angle(double angle);
+
+	protected:
+		Eigen::VectorXd state_;
+		Eigen::VectorXd control_acceleration_;
+		Eigen::MatrixXd transfer_func_;
+		Eigen::MatrixXd transfer_func_jacobian_;
+		Eigen::MatrixXd estimate_error_covariance_; // 先验估计协方差矩阵
+
+	};
 
 }
 

@@ -4,7 +4,7 @@
 namespace FB {
 
 void KF::predict() {
-	double delta_t = 1.0;
+	double delta_t = 0.01;
 
 	double roll = state_(StateMemberRoll);
 	double pitch = state_(StateMemberPitch);
@@ -30,7 +30,8 @@ void KF::predict() {
 	double tan_pitch = sin_pitch * sec_pitch;
 
 	// state predict
-	transfer_func_(StateMemberX, StateMemberVx) = cos_yaw * cos_pitch * delta_t;
+	//transfer_func_.setIdentity();
+	transfer_func_(StateMemberX, StateMemberVx) = cos_yaw * cos_pitch * delta_t; // cos_yaw * cos_pitch * delta_t * Vx = 世界坐标系下x轴的线速度对世界坐标系下x轴坐标的影响
 	transfer_func_(StateMemberX, StateMemberVy) = (-1.0 * sin_yaw * cos_roll + cos_yaw * sin_pitch * sin_roll) * delta_t;
 	transfer_func_(StateMemberX, StateMemberVz) = (sin_yaw * sin_roll + cos_yaw * sin_pitch * cos_roll) * delta_t;
 	transfer_func_(StateMemberX, StateMemberAx) = 0.5 * transfer_func_(StateMemberX, StateMemberVx) * delta_t; // 0.5*Ax*t^2
@@ -59,16 +60,83 @@ void KF::predict() {
 	transfer_func_(StateMemberYaw, StateMemberGy) = sin_roll * sec_pitch * delta_t;
 	transfer_func_(StateMemberYaw, StateMemberGz) = cos_roll * sec_pitch * delta_t;
 
-	transfer_func_(StateMemberVx, StateMemberAx) = delta_t;
+	transfer_func_(StateMemberVx, StateMemberAx) = delta_t; // 状态矩阵中的加速度和速度都在体坐标系下所以不用旋转
 	transfer_func_(StateMemberVy, StateMemberAy) = delta_t;
 	transfer_func_(StateMemberVz, StateMemberAz) = delta_t;
+
+	// Linearilze
+	double x_coeff = 0.0;
+	double y_coeff = 0.0;
+	double z_coeff = 0.0;
+	double one_half_at_squared = 0.5 * delta_t * delta_t;
+
+	x_coeff = 0.0;
+	y_coeff = cos_yaw * sin_pitch * cos_roll + sin_yaw * sin_roll;
+	z_coeff = sin_yaw * cos_roll - cos_yaw * sin_pitch * sin_roll;
+	double dFx_dR = (y_coeff * y_vel + z_coeff * z_vel) * delta_t + (y_coeff * y_acc + z_coeff * z_acc) * one_half_at_squared;
+	x_coeff = -1.0 * cos_yaw * sin_pitch;
+	y_coeff = cos_yaw * cos_pitch * sin_roll;
+	z_coeff = cos_yaw * cos_pitch * cos_roll;
+	double dFx_dP = (x_coeff * x_vel + y_coeff * y_vel + z_coeff * z_vel) * delta_t + (x_coeff * x_acc + y_coeff * y_acc + z_coeff * z_acc) * one_half_at_squared;
+	x_coeff = -1.0 * sin_yaw * cos_pitch;
+	y_coeff = -1.0 * sin_yaw * sin_pitch * sin_roll - cos_yaw * cos_roll;
+	z_coeff = -1.0 * sin_yaw * sin_pitch * cos_roll + cos_yaw * sin_roll;
+	double dFx_dY = (x_coeff * x_vel + y_coeff * y_vel + z_coeff * z_vel) * delta_t + (x_coeff * x_acc + y_coeff * y_acc + z_coeff * z_acc) * one_half_at_squared;
+
+	x_coeff = 0.0;
+	y_coeff = sin_yaw * sin_pitch * cos_roll - cos_yaw * sin_roll;
+	z_coeff = -1.0 * sin_yaw * sin_pitch * sin_roll - cos_yaw * cos_roll;
+	double dFy_dR = (y_coeff * y_vel + z_coeff * z_vel) * delta_t + (y_coeff * y_acc + z_coeff * z_acc) * one_half_at_squared;
+	x_coeff = -1.0 * sin_yaw * sin_pitch;
+	y_coeff = sin_yaw * cos_pitch * sin_roll;
+	z_coeff = sin_yaw * cos_pitch * cos_roll;
+	double dFy_dP = (x_coeff * x_vel + y_coeff * y_vel + z_coeff * z_vel) * delta_t + (x_coeff * x_acc + y_coeff * y_acc + z_coeff * z_acc) * one_half_at_squared;
+	x_coeff = cos_yaw * cos_pitch;
+	y_coeff = cos_yaw * sin_pitch * sin_roll - sin_yaw * cos_roll;
+	z_coeff = cos_yaw * sin_pitch * cos_roll + sin_yaw * sin_roll;
+	double dFy_dY = (x_coeff * x_vel + y_coeff * y_vel + z_coeff * z_vel) * delta_t + (x_coeff * x_acc + y_coeff * y_acc + z_coeff * z_acc) * one_half_at_squared;
+
+	x_coeff = 0.0;
+	y_coeff = cos_pitch * cos_roll;
+	z_coeff = -1.0 * cos_pitch * sin_roll;
+	double dFz_dR = (y_coeff * y_vel + z_coeff * z_vel) * delta_t + (y_coeff * y_acc + z_coeff * z_acc) * one_half_at_squared;
+	x_coeff = -1.0 * cos_pitch;
+	y_coeff = -1.0 * sin_pitch * sin_roll;
+	z_coeff = -1.0 * sin_pitch * cos_roll;
+	double dFz_dP = (x_coeff * x_vel + y_coeff * y_vel + z_coeff * z_vel) * delta_t + (x_coeff * x_acc + y_coeff * y_acc + z_coeff * z_acc) * one_half_at_squared;
+	//double dFz_dY = 0.0;
+
+	double dFR_dR = 1.0 + (cos_roll * tan_pitch * gyro_y - sin_roll * tan_pitch * gyro_z) * delta_t;
+	double dFR_dP = (sin_roll * sec_pitch * sec_pitch * gyro_y + cos_roll * sec_pitch * sec_pitch * gyro_z) * delta_t;
+	double dFR_dY = 0.0;
+	double dFP_dR = (-1.0 * sin_roll * gyro_y - cos_roll * gyro_z) * delta_t;
+	double dFP_dP = 1.0;
+	double dFP_dY = 0.0;
+	double dFY_dR = (cos_roll * sec_pitch * gyro_y - sin_roll * sec_pitch * gyro_z) * delta_t;
+	double dFY_dP = (sin_roll * tan_pitch * sec_pitch * gyro_y + cos_roll * tan_pitch * sec_pitch * gyro_z) * delta_t;
+	double dFY_dY = 1.0;
+
+
+	transfer_func_jacobian_ = transfer_func_;
+	transfer_func_jacobian_(StateMemberX, StateMemberRoll) = dFx_dR;
+	transfer_func_jacobian_(StateMemberX, StateMemberPitch) = dFx_dP;
+	transfer_func_jacobian_(StateMemberX, StateMemberYaw) = dFx_dY;
+	transfer_func_jacobian_(StateMemberY, StateMemberRoll) = dFy_dR;
+	transfer_func_jacobian_(StateMemberY, StateMemberPitch) = dFy_dP;
+	transfer_func_jacobian_(StateMemberY, StateMemberYaw) = dFy_dY;
+	transfer_func_jacobian_(StateMemberZ, StateMemberRoll) = dFz_dR;
+	transfer_func_jacobian_(StateMemberZ, StateMemberPitch) = dFz_dP;
+	transfer_func_jacobian_(StateMemberRoll, StateMemberRoll) = dFR_dR;
+	transfer_func_jacobian_(StateMemberRoll, StateMemberPitch) = dFR_dP;
+	transfer_func_jacobian_(StateMemberPitch, StateMemberRoll) = dFP_dR;
+	transfer_func_jacobian_(StateMemberYaw, StateMemberRoll) = dFY_dR;
+	transfer_func_jacobian_(StateMemberYaw, StateMemberPitch) = dFY_dP;
+
 	// control terms
 	state_(StateMemberGx) += control_acceleration_(ControlMemberGAroll) * delta_t;
 	state_(StateMemberGy) += control_acceleration_(ControlMemberGApitch) * delta_t;
 	state_(StateMemberGz) += control_acceleration_(ControlMemberGAyaw) * delta_t;
-
-	// wait update error
-	state_(StateMemberAx) = control_acceleration_(ControlMemberAx);
+	state_(StateMemberAx) = control_acceleration_(ControlMemberAx); // wait update error
 	state_(StateMemberAy) = control_acceleration_(ControlMemberAy);
 	state_(StateMemberAz) = control_acceleration_(ControlMemberAz);
 
@@ -76,8 +144,10 @@ void KF::predict() {
 	state_(StateMemberRoll) = normalize_angle(state_(StateMemberRoll));
 	state_(StateMemberPitch) = normalize_angle(state_(StateMemberPitch));
 	state_(StateMemberYaw) = normalize_angle(state_(StateMemberYaw));
+	std::cout << "estimate state " << std::endl;
+	std::cout << state_.transpose() << std::endl;
 
-
+	estimate_error_covariance_ = transfer_func_jacobian_ * transfer_func_jacobian_ * transfer_func_jacobian_.transpose();
 
 }
 

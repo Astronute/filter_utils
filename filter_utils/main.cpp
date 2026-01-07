@@ -1,9 +1,16 @@
 #include <iostream>
 #include "Eigen/Dense"
+#include "kf.h"
 
 
 void main() {
-	Eigen::MatrixXd transfer_function_(2, 2);
-	transfer_function_ << 1, 2, 3, 4;
-	std::cout << transfer_function_.setIdentity() << std::endl;
+	FB::KF ekf;
+
+	Eigen::VectorXd state(FB::STATE_SIZE);
+	state << 0, 0, 0, FB::PI, 0, 0, // x, y, z, roll, pitch, yaw
+		0, 0, 0, 0, -FB::PI, 0, // vx, vy, vz, gx, gy, gz
+		0, 0, 0; // ax, ay, az
+			
+	ekf.setState(state);
+	ekf.predict();
 }
