@@ -46,7 +46,8 @@ namespace FB{
 			transfer_func_(STATE_SIZE, STATE_SIZE),
 			transfer_func_jacobian_(STATE_SIZE, STATE_SIZE),
 			control_acceleration_(TWIST_SIZE),
-			estimate_error_covariance_(STATE_SIZE, STATE_SIZE){
+			estimate_error_covariance_(STATE_SIZE, STATE_SIZE),
+			process_noise_covariance_(STATE_SIZE, STATE_SIZE){
 			reset();
 		}
 		~FilterBase() {}
@@ -57,6 +58,8 @@ namespace FB{
 
 		void set_estimate_error_covariance(const Eigen::MatrixXd & estimate_error_covariance);
 
+		void set_process_noise_covariance(const Eigen::MatrixXd& process_noise_covariance);
+
 		double normalize_angle(double angle);
 
 	protected:
@@ -65,7 +68,7 @@ namespace FB{
 		Eigen::MatrixXd transfer_func_;
 		Eigen::MatrixXd transfer_func_jacobian_;
 		Eigen::MatrixXd estimate_error_covariance_; // 先验估计协方差矩阵
-
+		Eigen::MatrixXd process_noise_covariance_;
 	};
 
 }

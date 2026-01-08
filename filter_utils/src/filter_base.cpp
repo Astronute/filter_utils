@@ -11,6 +11,23 @@ namespace FB {
 		estimate_error_covariance_.setIdentity();
 		estimate_error_covariance_ *= 1e-9; // default 1e-9
 
+		process_noise_covariance_.setZero();
+		process_noise_covariance_(StateMemberX, StateMemberX) = 0.05;
+		process_noise_covariance_(StateMemberY, StateMemberY) = 0.05;
+		process_noise_covariance_(StateMemberZ, StateMemberZ) = 0.05;
+		process_noise_covariance_(StateMemberRoll, StateMemberRoll) = 0.05;
+		process_noise_covariance_(StateMemberPitch, StateMemberPitch) = 0.05;
+		process_noise_covariance_(StateMemberYaw, StateMemberYaw) = 0.05;
+		process_noise_covariance_(StateMemberVx, StateMemberVx) = 0.05;
+		process_noise_covariance_(StateMemberVy, StateMemberVy) = 0.05;
+		process_noise_covariance_(StateMemberVz, StateMemberVz) = 0.05;
+		process_noise_covariance_(StateMemberGx, StateMemberGx) = 0.05;
+		process_noise_covariance_(StateMemberGy, StateMemberGy) = 0.05;
+		process_noise_covariance_(StateMemberGz, StateMemberGz) = 0.05;
+		process_noise_covariance_(StateMemberAx, StateMemberAx) = 0.05;
+		process_noise_covariance_(StateMemberAy, StateMemberAy) = 0.05;
+		process_noise_covariance_(StateMemberAz, StateMemberAz) = 0.05;
+		
 	}
 
 	void FilterBase::setState(const Eigen::VectorXd& state) {
@@ -19,6 +36,10 @@ namespace FB {
 
 	void FilterBase::set_estimate_error_covariance(const Eigen::MatrixXd& estimate_error_covariance) {
 		estimate_error_covariance_ = estimate_error_covariance;
+	}
+
+	void FilterBase::set_process_noise_covariance(const Eigen::MatrixXd& process_noise_covariance) {
+		process_noise_covariance_ = process_noise_covariance;
 	}
 
 	double FilterBase::normalize_angle(double angle) {

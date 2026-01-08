@@ -1,7 +1,9 @@
 #pragma once
 #include <iostream>
+#include <vector>
 #include "Eigen/Dense"
 #include "filter_base.h"
+#include "measurement.h"
 
 namespace FB {
 
@@ -12,7 +14,7 @@ public:
 
 	void predict();
 
-	void correct();
+	void correct(const Measurement& measurement);
 
 };
 

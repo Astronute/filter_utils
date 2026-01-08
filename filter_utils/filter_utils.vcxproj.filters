@@ -32,5 +32,8 @@
     <ClInclude Include="inc\filter_base.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="inc\measurement.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
