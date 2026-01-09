@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Eigen/Dense"
+#include <vector>
 
 namespace FB{
 
@@ -60,6 +61,8 @@ namespace FB{
 
 		void set_process_noise_covariance(const Eigen::MatrixXd& process_noise_covariance);
 
+		bool checkMahalanobisThreshold(const Eigen::VectorXd & innovation, const Eigen::MatrixXd& innovation_cov, const double sigma);
+
 		double normalize_angle(double angle);
 
 	protected:
@@ -69,6 +72,7 @@ namespace FB{
 		Eigen::MatrixXd transfer_func_jacobian_;
 		Eigen::MatrixXd estimate_error_covariance_; // 先验估计协方差矩阵
 		Eigen::MatrixXd process_noise_covariance_;
+		std::vector<bool> control_update_mask_;
 	};
 
 }

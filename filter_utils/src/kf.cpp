@@ -133,13 +133,15 @@ namespace FB {
 		transfer_func_jacobian_(StateMemberYaw, StateMemberPitch) = dFY_dP;
 
 		// control terms
+		// 角加速度指令永远存在，有时可以不输出加速度（设计上角速度环是内环需要持续输出(高优先级)，线速度环是外环可以休眠(低优先级)）
 		state_(StateMemberGx) += control_acceleration_(ControlMemberGAroll) * delta_t;
 		state_(StateMemberGy) += control_acceleration_(ControlMemberGApitch) * delta_t;
 		state_(StateMemberGz) += control_acceleration_(ControlMemberGAyaw) * delta_t;
-		state_(StateMemberAx) = control_acceleration_(ControlMemberAx); // wait update error
-		state_(StateMemberAy) = control_acceleration_(ControlMemberAy);
-		state_(StateMemberAz) = control_acceleration_(ControlMemberAz);
+		state_(StateMemberAx) = control_update_mask_[ControlMemberAx] ? control_acceleration_(ControlMemberAx) : state_(StateMemberAx); // wait update
+		state_(StateMemberAy) = control_update_mask_[ControlMemberAy] ? control_acceleration_(ControlMemberAy) : state_(StateMemberAy);
+		state_(StateMemberAz) = control_update_mask_[ControlMemberAz] ? control_acceleration_(ControlMemberAz) : state_(StateMemberAz);
 
+		// x_{k} = A*x_{k-1} + B*u_{k-1}
 		state_ = transfer_func_ * state_;
 		state_(StateMemberRoll) = normalize_angle(state_(StateMemberRoll));
 		state_(StateMemberPitch) = normalize_angle(state_(StateMemberPitch));
@@ -149,22 +151,26 @@ namespace FB {
 		std::cout << " process noise cov" << std::endl;
 		std::cout << process_noise_covariance_ << std::endl;
 
-		estimate_error_covariance_ = transfer_func_jacobian_ * transfer_func_jacobian_ * transfer_func_jacobian_.transpose();
+		// P'_{k} = AP_{k-1}A + Q
+		estimate_error_covariance_ = transfer_func_jacobian_ * estimate_error_covariance_ * transfer_func_jacobian_.transpose();
 		estimate_error_covariance_.noalias() += delta_t * process_noise_covariance_;
 	}
+
 
 	void KF::correct(const Measurement& measurement) {
 
 		std::vector<size_t> update_indices;
 		for (int i = 0; i < measurement.update_mask_.size(); ++i) {
-			if (std::isnan(measurement.measurement_(i))) {
-				std::cout << " vector nan " << std::endl;
-			}
-			else if (std::isinf(measurement.measurement_(i))) {
-				std::cout << " vector inf " << std::endl;
-			}
-			else {
-				update_indices.push_back(i);
+			if (measurement.update_mask_[i]) {
+				if (std::isnan(measurement.measurement_(i))) {
+					std::cout << " vector nan " << std::endl;
+				}
+				else if (std::isinf(measurement.measurement_(i))) {
+					std::cout << " vector inf " << std::endl;
+				}
+				else {
+					update_indices.push_back(i);
+				}
 			}
 		}
 		
@@ -175,11 +181,15 @@ namespace FB {
 		Eigen::VectorXd measurement_subset(update_size); // z_k
 		Eigen::MatrixXd measurement_error_covariance(update_size, update_size); // R
 		Eigen::MatrixXd state_to_measurement_subset(update_size, state_.rows()); // H
-		Eigen::MatrixXd kalman_gain_subset(); // K
+		Eigen::MatrixXd kalman_gain_subset(state_.rows(), update_size); // K
+		Eigen::VectorXd innovation_subset(update_size); // z - Hx
+
 		state_subset.setZero();
 		measurement_subset.setZero();
 		measurement_error_covariance.setZero();
 		state_to_measurement_subset.setZero();
+		kalman_gain_subset.setZero();
+		innovation_subset.setZero();
 
 		for (size_t i = 0; i < update_size; ++i) {
 			state_subset(i) = state_(update_indices[i]);
@@ -189,10 +199,11 @@ namespace FB {
 				measurement_error_covariance(i, j) = measurement.covariance_(update_indices[i], update_indices[j]);
 			}
 			if (measurement_error_covariance(i, i) < 0) {
-				std::cout << " R negative cov " << std::endl;
 				measurement_error_covariance(i, i) = std::fabs(measurement_error_covariance(i, i));
+				std::cout << " R negative cov " << std::endl;
 			}
-			else if (measurement_error_covariance(i, i) < 1e-10) {
+			else if (measurement_error_covariance(i, i) < 1e-9) {
+				measurement_error_covariance(i, i) = 1e-9;
 				std::cout << " R small cov " << std::endl;
 			}
 		}
@@ -204,7 +215,33 @@ namespace FB {
 		// P:先验误差协方差 R:测量误差协方差
 		Eigen::MatrixXd pht = estimate_error_covariance_ * state_to_measurement_subset.transpose();
 		Eigen::MatrixXd hphr_inverse = (state_to_measurement_subset * pht + measurement_error_covariance).inverse();
+		kalman_gain_subset.noalias() = pht * hphr_inverse;
+		// 测量值 - 先验估计
+		innovation_subset = measurement_subset - state_subset;
 
+		for (size_t i = 0; i < update_size; ++i) {
+			if (update_indices[i] == StateMemberRoll || update_indices[i] == StateMemberPitch || update_indices[i] == StateMemberYaw) {
+				innovation_subset(i) = normalize_angle(innovation_subset(i));
+			}
+		}
+
+		if (checkMahalanobisThreshold(innovation_subset, hphr_inverse, measurement.mahalanobis_thresh_)) {
+			// 后验估计
+			state_.noalias() += kalman_gain_subset * innovation_subset;
+
+			// I-KH
+			Eigen::MatrixXd ikh = Eigen::MatrixXd::Identity(state_.rows(), state_.rows());
+			ikh.noalias() -= kalman_gain_subset * state_to_measurement_subset;
+			// P_{K} = (I-KH)P'_{k}(I-KH)' + KRK 根据先验误差协方差和测量误差协方差更新后验误差协方差
+			estimate_error_covariance_ = ikh * estimate_error_covariance_ * ikh.transpose();
+			estimate_error_covariance_.noalias() += kalman_gain_subset * measurement_error_covariance * kalman_gain_subset.transpose();
+
+			state_(StateMemberRoll) = normalize_angle(state_(StateMemberRoll));
+			state_(StateMemberPitch) = normalize_angle(state_(StateMemberPitch));
+			state_(StateMemberYaw) = normalize_angle(state_(StateMemberYaw));
+
+			std::cout << " correct state: " << state_.transpose() << std::endl;
+		}
 
 	}
 

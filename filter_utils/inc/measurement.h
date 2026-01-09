@@ -9,6 +9,8 @@ namespace FB {
 	struct Measurement {
 		Measurement() {}
 
+		double mahalanobis_thresh_;
+
 		std::vector<bool> update_mask_;
 
 		Eigen::MatrixXd measurement_;

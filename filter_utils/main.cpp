@@ -13,4 +13,5 @@ void main() {
 
 	ekf.setState(state);
 	ekf.predict();
+	ekf.correct();
 }

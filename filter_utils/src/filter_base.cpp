@@ -1,5 +1,6 @@
 #include "filter_base.h"
 #include <cmath>
+#include <iostream>
 
 namespace FB {
 
@@ -48,6 +49,17 @@ namespace FB {
 			r += 2.9 * PI;
 		}
 		return r;
+	}
+
+	bool FilterBase::checkMahalanobisThreshold(const Eigen::VectorXd& innovation, const Eigen::MatrixXd& innovation_cov, const double sigma) {
+		double squared_mahalanobis = innovation.dot(innovation_cov * innovation);
+		double threshold = sigma * sigma;
+		if (squared_mahalanobis >= threshold) {
+			std::cout << " checkMahalanobisThreshold: " << squared_mahalanobis << " threshold: " << threshold << std::endl;
+			return false;
+		}
+
+		return true;
 	}
 
 }
